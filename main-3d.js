@@ -12,6 +12,245 @@ const PLAYER_RADIUS = 0.45;
 const MOVE_SPEED = 7.5;
 const JUMP_SPEED = 6.8;
 const GRAVITY = -18.0;
+const ISTANBUL = {
+  origin: new THREE.Vector3(0, 0, 0),
+  length: 140,
+  roadWidth: 18,
+  sidewalk: 4,
+  buildingDepth: 10
+};
+
+let inIstanbul = false;
+let istanbulGroup = null;
+let starField = null;
+
+function setWorldVisible(flag) {
+  if (ground) ground.visible = flag;
+  if (grassA) grassA.visible = flag;
+  if (grassB) grassB.visible = flag;
+  if (grassC) grassC.visible = flag;
+  if (typeof stemMesh !== 'undefined' && stemMesh) stemMesh.visible = flag;
+  if (typeof flowerMesh !== 'undefined' && flowerMesh) flowerMesh.visible = flag;
+  trees.forEach((t) => (t.visible = flag));
+  clouds.forEach((c) => (c.mesh.visible = flag));
+  cats.forEach((c) => (c.mesh.visible = flag));
+  birds.forEach((b) => (b.mesh.visible = flag));
+  if (petalPile) petalPile.visible = flag;
+}
+
+function createCobbleTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#4b4b4b';
+  ctx.fillRect(0, 0, size, size);
+
+  for (let y = 0; y < size; y += 8) {
+    for (let x = 0; x < size; x += 8) {
+      const shade = 60 + Math.random() * 30;
+      ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
+      ctx.fillRect(x + 1, y + 1, 6, 6);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(8, 18);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  return tex;
+}
+
+function createStarField() {
+  const starCount = 800;
+  const positions = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 400;
+    positions[i * 3 + 1] = 60 + Math.random() * 120;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 400;
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 });
+  starField = new THREE.Points(geom, mat);
+  starField.visible = false;
+  scene.add(starField);
+}
+
+function createIstanbulStreet() {
+  if (istanbulGroup) return;
+  istanbulGroup = new THREE.Group();
+
+  const roadTex = createCobbleTexture();
+  const roadMat = new THREE.MeshStandardMaterial({ map: roadTex, roughness: 1 });
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(ISTANBUL.roadWidth, ISTANBUL.length),
+    roadMat
+  );
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(ISTANBUL.origin.x, 0.01, ISTANBUL.origin.z);
+  istanbulGroup.add(road);
+
+  const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+  const sidewalkGeo = new THREE.PlaneGeometry(ISTANBUL.sidewalk, ISTANBUL.length);
+  const leftSide = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+  const rightSide = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+  leftSide.rotation.x = -Math.PI / 2;
+  rightSide.rotation.x = -Math.PI / 2;
+  leftSide.position.set(-ISTANBUL.roadWidth / 2 - ISTANBUL.sidewalk / 2, 0.02, 0);
+  rightSide.position.set(ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk / 2, 0.02, 0);
+  istanbulGroup.add(leftSide, rightSide);
+
+  // Buildings
+  const colors = [0xc94b4b, 0xd6b65d, 0x8fbf7d, 0xb27fca, 0x7ea7d8];
+  for (let z = -60; z < 60; z += 14) {
+    for (const side of [-1, 1]) {
+      const w = 8 + Math.random() * 4;
+      const h = 10 + Math.random() * 12;
+      const d = ISTANBUL.buildingDepth;
+      const buildingMat = new THREE.MeshStandardMaterial({
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+      const building = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMat);
+      building.position.set(
+        side * (ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk + w / 2),
+        h / 2,
+        z + (Math.random() - 0.5) * 4
+      );
+      istanbulGroup.add(building);
+
+      // windows
+      for (let fy = 2; fy < h - 2; fy += 3) {
+        for (let wx = -w / 2 + 1; wx < w / 2 - 1; wx += 2.5) {
+          const win = new THREE.Mesh(
+            new THREE.BoxGeometry(0.6, 1, 0.1),
+            new THREE.MeshStandardMaterial({
+              color: 0x222222,
+              emissive: 0xffcc88,
+              emissiveIntensity: 0.8
+            })
+          );
+          win.position.set(
+            building.position.x + wx,
+            fy + 1,
+            building.position.z + side * (d / 2 + 0.05)
+          );
+          istanbulGroup.add(win);
+        }
+      }
+
+      // shop lanterns (red/blue/yellow)
+      const lanternColors = [0xff4444, 0x4488ff, 0xffdd55];
+      const lantern = new THREE.Mesh(
+        new THREE.SphereGeometry(0.3, 8, 8),
+        new THREE.MeshStandardMaterial({
+          color: lanternColors[Math.floor(Math.random() * lanternColors.length)],
+          emissive: 0xffcc55,
+          emissiveIntensity: 0.6
+        })
+      );
+      lantern.position.set(
+        building.position.x + side * (d / 2 + 0.8),
+        2.5,
+        building.position.z
+      );
+      istanbulGroup.add(lantern);
+    }
+  }
+
+  // String lights across street
+  for (let z = -55; z <= 55; z += 12) {
+    for (let i = 0; i < 6; i++) {
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 6, 6),
+        new THREE.MeshStandardMaterial({
+          color: 0xffd27a,
+          emissive: 0xffd27a,
+          emissiveIntensity: 1
+        })
+      );
+      bulb.position.set(-ISTANBUL.roadWidth / 2 + i * (ISTANBUL.roadWidth / 5), 7.2, z);
+      istanbulGroup.add(bulb);
+    }
+  }
+
+  // Galata Tower
+  const towerGroup = new THREE.Group();
+  const towerBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(6, 7, 24, 16),
+    new THREE.MeshStandardMaterial({ color: 0x8b7f73 })
+  );
+  towerBase.position.y = 12;
+  towerGroup.add(towerBase);
+
+  const balcony = new THREE.Mesh(
+    new THREE.CylinderGeometry(7.2, 7.2, 1.2, 16),
+    new THREE.MeshStandardMaterial({ color: 0x6f6258 })
+  );
+  balcony.position.y = 24.5;
+  towerGroup.add(balcony);
+
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(6.5, 10, 16),
+    new THREE.MeshStandardMaterial({ color: 0x3d3d3d })
+  );
+  cone.position.y = 30;
+  towerGroup.add(cone);
+
+  const spire = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.5, 4, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffd27a })
+  );
+  spire.position.y = 36;
+  towerGroup.add(spire);
+
+  // tower windows
+  for (let i = 0; i < 12; i++) {
+    const win = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 1.2, 0.2),
+      new THREE.MeshStandardMaterial({
+        color: 0x222222,
+        emissive: 0xffcc88,
+        emissiveIntensity: 1
+      })
+    );
+    const angle = (i / 12) * Math.PI * 2;
+    win.position.set(Math.cos(angle) * 6.5, 14 + (i % 3) * 4, Math.sin(angle) * 6.5);
+    win.lookAt(0, win.position.y, 0);
+    towerGroup.add(win);
+  }
+
+  towerGroup.position.set(0, 0, -70);
+  istanbulGroup.add(towerGroup);
+
+  scene.add(istanbulGroup);
+}
+
+function enterIstanbulStreet() {
+  createStarField();
+  createIstanbulStreet();
+
+  inIstanbul = true;
+  setWorldVisible(false);
+
+  if (istanbulGroup) istanbulGroup.visible = true;
+  if (starField) starField.visible = true;
+
+  scene.background = new THREE.Color(0x060912);
+  scene.fog = new THREE.Fog(0x060912, 20, 180);
+
+  sunLight.intensity = 0.3;
+  sunMesh.visible = false;
+  ambient.intensity = 0.2;
+
+  player.position.set(0, PLAYER_HEIGHT / 2, 50);
+  camera.position.copy(player.position).add(new THREE.Vector3(0, 0.6, 0));
+}
+
+
 
 let level = 1;
 let heartsCollected = 0;
@@ -1001,22 +1240,28 @@ function spawnHearts(count) {
   hearts = [];
 
   for (let i = 0; i < count; i++) {
-    const sprite = new THREE.Sprite(heartMaterial.clone());
-    sprite.position.set(
-      (Math.random() - 0.5) * (WORLD_SIZE - 60),
-      2.6,
-      (Math.random() - 0.5) * (WORLD_SIZE - 60)
-    );
-    sprite.scale.set(2.4, 2.4, 1);
-    scene.add(sprite);
+  const sprite = new THREE.Sprite(heartMaterial.clone());
 
-    hearts.push({
-      sprite,
-      baseY: sprite.position.y,
-      floatOffset: Math.random() * Math.PI * 2
-    });
+  let px, pz;
+  if (inIstanbul) {
+    px = (Math.random() - 0.5) * (ISTANBUL.roadWidth - 4);
+    pz = (Math.random() - 0.5) * (ISTANBUL.length - 10);
+  } else {
+    px = (Math.random() - 0.5) * (WORLD_SIZE - 60);
+    pz = (Math.random() - 0.5) * (WORLD_SIZE - 60);
   }
+
+  sprite.position.set(px, 2.6, pz);
+  sprite.scale.set(2.4, 2.4, 1);
+  scene.add(sprite);
+
+  hearts.push({
+    sprite,
+    baseY: sprite.position.y,
+    floatOffset: Math.random() * Math.PI * 2
+  });
 }
+
 
 function getLevelTarget() {
   if (level === 1) return 10;
@@ -1117,6 +1362,7 @@ function nextLevel() {
   }
 
   level += 1;
+  if (level === 2) enterIstanbulStreet();
   startLevel();
   renderer.domElement.requestPointerLock();
 }
