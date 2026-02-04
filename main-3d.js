@@ -50,17 +50,35 @@ scene.add(camera);
 const ambient = new THREE.HemisphereLight(0xdce8ff, 0x4a5a3a, 0.5);
 scene.add(ambient);
 
-const sun = new THREE.DirectionalLight(0xfff2d1, 1.2);
-sun.position.set(140, 180, 60);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 500;
-sun.shadow.camera.left = -180;
-sun.shadow.camera.right = 180;
-sun.shadow.camera.top = 180;
-sun.shadow.camera.bottom = -180;
-scene.add(sun);
+// --- Sun + Sunlight ---
+const sunGroup = new THREE.Group();
+
+// visible sun disk
+const sunMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(6, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xfff2c4 })
+);
+sunMesh.position.set(140, 180, 60);
+sunGroup.add(sunMesh);
+scene.add(sunGroup);
+
+// sunlight (directional)
+const sunLight = new THREE.DirectionalLight(0xfff1d6, 1.4);
+sunLight.position.copy(sunMesh.position);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(1024, 1024);
+sunLight.shadow.camera.near = 1;
+sunLight.shadow.camera.far = 600;
+sunLight.shadow.camera.left = -200;
+sunLight.shadow.camera.right = 200;
+sunLight.shadow.camera.top = 200;
+sunLight.shadow.camera.bottom = -200;
+scene.add(sunLight);
+
+// target for sunlight direction
+sunLight.target.position.set(0, 0, 0);
+scene.add(sunLight.target);
+
 
 function createBlockTexture(palette, size = 64, block = 8) {
   const canvas = document.createElement('canvas');
@@ -114,44 +132,50 @@ ground.position.y = groundTop - 3;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const grassBladeCount = 40000;
-const grassGeo = new THREE.PlaneGeometry(0.08, 0.35);
-const grassMat = new THREE.MeshStandardMaterial({ color: 0x4aa24f, side: THREE.DoubleSide });
-const grassA = new THREE.InstancedMesh(grassGeo, grassMat, grassBladeCount);
-const grassB = new THREE.InstancedMesh(grassGeo, grassMat, grassBladeCount);
+// Dense, layered grass
+const grassLayerA = 250000;
+const grassLayerB = 200000;
+const grassLayerC = 150000;
+
+const grassGeoA = new THREE.PlaneGeometry(0.05, 0.22);
+const grassGeoB = new THREE.PlaneGeometry(0.06, 0.28);
+const grassGeoC = new THREE.PlaneGeometry(0.07, 0.32);
+
+const grassMatA = new THREE.MeshStandardMaterial({ color: 0x4aa24f, side: THREE.DoubleSide });
+const grassMatB = new THREE.MeshStandardMaterial({ color: 0x45984a, side: THREE.DoubleSide });
+const grassMatC = new THREE.MeshStandardMaterial({ color: 0x3f8f45, side: THREE.DoubleSide });
+
+const grassA = new THREE.InstancedMesh(grassGeoA, grassMatA, grassLayerA);
+const grassB = new THREE.InstancedMesh(grassGeoB, grassMatB, grassLayerB);
+const grassC = new THREE.InstancedMesh(grassGeoC, grassMatC, grassLayerC);
+
 grassA.receiveShadow = true;
 grassB.receiveShadow = true;
+grassC.receiveShadow = true;
+
 scene.add(grassA);
 scene.add(grassB);
+scene.add(grassC);
 
-const flowerCount = 140;
-const stemGeo = new THREE.CylinderGeometry(0.03, 0.05, 0.45, 5);
-const stemMat = new THREE.MeshStandardMaterial({ color: 0x4f9f4a });
-const flowerGeo = new THREE.IcosahedronGeometry(0.12, 0);
-const flowerMat = new THREE.MeshStandardMaterial({ color: 0xf8c6db });
-const stemMesh = new THREE.InstancedMesh(stemGeo, stemMat, flowerCount);
-const flowerMesh = new THREE.InstancedMesh(flowerGeo, flowerMat, flowerCount);
-scene.add(stemMesh);
-scene.add(flowerMesh);
-
-{
+function scatterGrass(mesh, count, heightMin, heightMax) {
   const dummy = new THREE.Object3D();
-  for (let i = 0; i < grassBladeCount; i++) {
-    const x = (Math.random() - 0.5) * (WORLD_SIZE - 6);
-    const z = (Math.random() - 0.5) * (WORLD_SIZE - 6);
-    const h = 0.18 + Math.random() * 0.22;
+  for (let i = 0; i < count; i++) {
+    const x = (Math.random() - 0.5) * (WORLD_SIZE - 4);
+    const z = (Math.random() - 0.5) * (WORLD_SIZE - 4);
+    const h = heightMin + Math.random() * (heightMax - heightMin);
     dummy.position.set(x, h * 0.5, z);
-    dummy.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI, 0);
+    dummy.rotation.set((Math.random() - 0.5) * 0.4, Math.random() * Math.PI, 0);
     dummy.scale.set(1, h, 1);
     dummy.updateMatrix();
-    grassA.setMatrixAt(i, dummy.matrix);
-    dummy.rotation.y += Math.PI / 2;
-    dummy.rotation.x *= -1;
-    dummy.updateMatrix();
-    grassB.setMatrixAt(i, dummy.matrix);
+    mesh.setMatrixAt(i, dummy.matrix);
   }
-  grassA.instanceMatrix.needsUpdate = true;
-  grassB.instanceMatrix.needsUpdate = true;
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+scatterGrass(grassA, grassLayerA, 0.12, 0.2);
+scatterGrass(grassB, grassLayerB, 0.16, 0.26);
+scatterGrass(grassC, grassLayerC, 0.2, 0.3);
+
 
   for (let i = 0; i < flowerCount; i++) {
     const x = (Math.random() - 0.5) * (WORLD_SIZE - 12);
@@ -369,32 +393,94 @@ const cats = [];
 
 function createCat(x, z, follow = false) {
   const group = new THREE.Group();
-  const mat = catMats[Math.floor(Math.random() * catMats.length)];
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 0.6), mat);
-  body.position.y = 0.35;
-  body.castShadow = true;
+  const baseColor = new THREE.Color(catColors[Math.floor(Math.random() * catColors.length)]);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: baseColor });
+  const darkStripeMat = new THREE.MeshStandardMaterial({ color: baseColor.clone().multiplyScalar(0.7) });
+  const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const eyeDarkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+  const noseMat = new THREE.MeshStandardMaterial({ color: 0xff9cb3 });
+  const whiskerMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+
+  // body (slight curve using 2 blocks)
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.7, 0.8), bodyMat);
+  body.position.y = 0.45;
   group.add(body);
 
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.5), mat);
-  head.position.set(0.9, 0.55, 0);
-  head.castShadow = true;
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.7), bodyMat);
+  back.position.set(-0.6, 0.5, 0);
+  group.add(back);
+
+  // stripes
+  for (let i = 0; i < 4; i++) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.7), darkStripeMat);
+    stripe.position.set(-0.3 + i * 0.25, 0.6, 0);
+    group.add(stripe);
+  }
+
+  // head
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.6), bodyMat);
+  head.position.set(1.0, 0.6, 0);
   group.add(head);
 
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.15), mat);
-  tail.position.set(-0.9, 0.45, 0);
-  tail.castShadow = true;
-  group.add(tail);
+  // ears
+  const earGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+  const leftEar = new THREE.Mesh(earGeo, bodyMat);
+  const rightEar = new THREE.Mesh(earGeo, bodyMat);
+  leftEar.position.set(1.2, 0.9, -0.2);
+  rightEar.position.set(1.2, 0.9, 0.2);
+  group.add(leftEar, rightEar);
 
-  const legGeo = new THREE.BoxGeometry(0.15, 0.35, 0.15);
-  for (const dx of [-0.5, 0.5]) {
-    for (const dz of [-0.2, 0.2]) {
-      const leg = new THREE.Mesh(legGeo, mat);
-      leg.position.set(dx, 0.15, dz);
-      leg.castShadow = true;
-      group.add(leg);
-    }
+  // eyes
+  const eyeGeo = new THREE.BoxGeometry(0.12, 0.18, 0.05);
+  const leftEyeWhite = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+  const rightEyeWhite = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+  leftEyeWhite.position.set(1.15, 0.62, -0.18);
+  rightEyeWhite.position.set(1.15, 0.62, 0.18);
+  group.add(leftEyeWhite, rightEyeWhite);
+
+  const pupilGeo = new THREE.BoxGeometry(0.06, 0.12, 0.05);
+  const leftPupil = new THREE.Mesh(pupilGeo, eyeDarkMat);
+  const rightPupil = new THREE.Mesh(pupilGeo, eyeDarkMat);
+  leftPupil.position.set(1.17, 0.62, -0.18);
+  rightPupil.position.set(1.17, 0.62, 0.18);
+  group.add(leftPupil, rightPupil);
+
+  // nose + mouth
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.08), noseMat);
+  nose.position.set(1.3, 0.52, 0);
+  group.add(nose);
+
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.04), eyeDarkMat);
+  mouth.position.set(1.23, 0.45, 0);
+  group.add(mouth);
+
+  // whiskers
+  for (let i = -1; i <= 1; i += 2) {
+    const whisker = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.02, 0.02), whiskerMat);
+    whisker.position.set(1.25, 0.5, i * 0.25);
+    group.add(whisker);
   }
+
+  // legs
+  const legGeo = new THREE.BoxGeometry(0.18, 0.4, 0.18);
+  const legPositions = [
+    [-0.5, 0.2, -0.25],
+    [-0.5, 0.2, 0.25],
+    [0.5, 0.2, -0.25],
+    [0.5, 0.2, 0.25]
+  ];
+  legPositions.forEach((p) => {
+    const leg = new THREE.Mesh(legGeo, bodyMat);
+    leg.position.set(p[0], p[1], p[2]);
+    group.add(leg);
+  });
+
+  // tail
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.8), bodyMat);
+  tail.position.set(-1.0, 0.7, 0);
+  tail.rotation.y = Math.PI / 2;
+  group.add(tail);
 
   group.position.set(x, 0, z);
   scene.add(group);
