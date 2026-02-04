@@ -774,25 +774,55 @@ function createRose() {
 
 const fpHands = new THREE.Group();
 
-function createFpHand() {
+function createFpHand(side) {
   const hand = new THREE.Group();
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.1), skinMat);
+
+  // wrist + palm
+  const wrist = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.12), skinMat);
+  wrist.castShadow = true;
+  hand.add(wrist);
+
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.12), skinMat);
+  palm.position.set(0, 0, -0.08);
   palm.castShadow = true;
   hand.add(palm);
 
-  const fingerGeo = new THREE.BoxGeometry(0.025, 0.015, 0.045);
-  const nailGeo = new THREE.BoxGeometry(0.028, 0.008, 0.015);
-  const offsets = [-0.045, -0.022, 0, 0.022, 0.045];
+  // fingers (curved pose)
+  const fingerGeo = new THREE.BoxGeometry(0.03, 0.02, 0.06);
+  const tipGeo = new THREE.BoxGeometry(0.025, 0.018, 0.04);
+  const nailGeo = new THREE.BoxGeometry(0.026, 0.008, 0.02);
+  const offsets = [-0.055, -0.028, 0, 0.028, 0.055];
 
-  offsets.forEach((x) => {
-    const finger = new THREE.Mesh(fingerGeo, skinMat);
-    finger.position.set(x, 0.02, -0.07);
-    hand.add(finger);
+  offsets.forEach((x, i) => {
+    const finger = new THREE.Group();
+    finger.position.set(x, 0.02, -0.14);
+    finger.rotation.x = 0.55;
+    finger.rotation.z = side * 0.15;
+
+    const base = new THREE.Mesh(fingerGeo, skinMat);
+    base.castShadow = true;
+    finger.add(base);
+
+    const tip = new THREE.Mesh(tipGeo, skinMat);
+    tip.position.set(0, 0, -0.06);
+    tip.rotation.x = 0.25;
+    tip.castShadow = true;
+    finger.add(tip);
 
     const nail = new THREE.Mesh(nailGeo, nailMat);
-    nail.position.set(x, 0.024, -0.085);
-    hand.add(nail);
+    nail.position.set(0, 0.008, -0.085);
+    nail.castShadow = true;
+    finger.add(nail);
+
+    hand.add(finger);
   });
+
+  // thumb
+  const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.06), skinMat);
+  thumb.position.set(side * 0.06, 0.01, -0.1);
+  thumb.rotation.x = 0.4;
+  thumb.rotation.z = side * -0.6;
+  hand.add(thumb);
 
   return hand;
 }
@@ -800,28 +830,32 @@ function createFpHand() {
 function createFpArm(side) {
   const arm = new THREE.Group();
 
-  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.25), sleeveMat);
+  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.24), sleeveMat);
   sleeve.position.set(0, 0, 0);
   sleeve.castShadow = true;
   arm.add(sleeve);
 
-  const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.2), skinMat);
-  forearm.position.set(0, -0.02, -0.15);
+  const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.18), skinMat);
+  forearm.position.set(0, -0.01, -0.14);
   forearm.castShadow = true;
   arm.add(forearm);
 
-  const hand = createFpHand();
-  hand.position.set(0, -0.04, -0.28);
-  hand.rotation.x = 0.2;
+  const hand = createFpHand(side);
+  hand.position.set(0, -0.02, -0.28);
+  hand.rotation.x = 0.35;
+  hand.rotation.z = side * -0.15;
   arm.add(hand);
 
-  arm.position.set(side * 0.45, -0.32, -0.9); // farther apart + smaller
-  arm.rotation.set(0.35, side * 0.25, side * 0.08);
+  // placement to match reference (hands higher + curved inward)
+  arm.position.set(side * 0.42, -0.18, -0.85);
+  arm.rotation.set(0.3, side * 0.2, 0);
+
   return arm;
 }
 
 fpHands.add(createFpArm(-1), createFpArm(1));
 camera.add(fpHands);
+
 
 
 const encounters = [];
