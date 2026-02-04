@@ -87,17 +87,17 @@ const grassTopTex = createBlockTexture(['#5fbf5a', '#59b354', '#64c563']);
 const grassSideTex = createBlockTexture(['#4da04b', '#5fbf5a', '#8a5a2b']);
 const dirtTex = createBlockTexture(['#8a5a2b', '#7a4a22', '#6b3e1d']);
 const trunkTex = createBlockTexture(['#8a5a2b', '#7a4a22', '#6b3e1d']);
-const trunkTex = createBlockTexture(['#8a5a2b', '#7a4a22', '#6b3e1d']);
 const blossomTex = createBlockTexture(['#f8c6db', '#f6b3d0', '#f29ac2', '#e57aa5', '#fbd9e8', '#ffd6e7']);
-
-const trunkMat = new THREE.MeshStandardMaterial({ map: trunkTex });
-const blossomMat = new THREE.MeshStandardMaterial({ map: blossomTex });
-const leafTex = createBlockTexture(['#2f7a36', '#3c8f3f', '#2b6d2f']);
 const cloudTex = createBlockTexture(['#ffffff', '#f4f6f9', '#e8f1ff']);
 
 const grassTopMat = new THREE.MeshStandardMaterial({ map: grassTopTex });
 const grassSideMat = new THREE.MeshStandardMaterial({ map: grassSideTex });
 const dirtMat = new THREE.MeshStandardMaterial({ map: dirtTex });
+
+const trunkMat = new THREE.MeshStandardMaterial({ map: trunkTex });
+const blossomMat = new THREE.MeshStandardMaterial({ map: blossomTex });
+const cloudMat = new THREE.MeshStandardMaterial({ map: cloudTex, transparent: true, opacity: 0.95 });
+
 
 const groundGeo = new THREE.BoxGeometry(WORLD_SIZE, 6, WORLD_SIZE);
 const groundMat = [
@@ -617,11 +617,11 @@ function animate() {
   updatePlayer(delta);
   updateCamera();
   updateClouds(delta);
-  updateHearts(elapsed);
-  updateHud(levelTime);
-  updateClouds(delta);
   updateCats(delta, elapsed);
   updateBirds(delta, elapsed);
+  updateHearts(elapsed);
+  updateHud(levelTime);
+
 
 
   if (heartsCollected >= getLevelTarget()) {
