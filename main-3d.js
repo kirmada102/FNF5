@@ -28,27 +28,22 @@ const ISTANBUL = {
   buildingDepth: 10
 };
 
-const LANTERN_DURATION = 20;
+const LANTERN_DURATION = 120;
 let lanternShowActive = false;
 let lanternShowDone = false;
 let lanternShowTimer = 0;
 const lanterns = [];
 
-const lanternMat = new THREE.MeshStandardMaterial({
-  color: 0xfff1b5,
-  emissive: 0xffb347,
-  emissiveIntensity: 3.2,
+const lanternPaperMat = new THREE.MeshStandardMaterial({
+  color: 0xfff2c9,
+  emissive: 0xffc05a,
+  emissiveIntensity: 2.6,
   transparent: true,
-  opacity: 0.95
-});
-
-const lanternFrameMat = new THREE.MeshStandardMaterial({
-  color: 0x7a3b1d,
-  roughness: 0.8
+  opacity: 0.85
 });
 
 const lanternGlowMat = new THREE.SpriteMaterial({
-  color: 0xffc65c,
+  color: 0xffc55c,
   transparent: true,
   opacity: 0.9,
   blending: THREE.AdditiveBlending,
@@ -58,7 +53,6 @@ const lanternGlowMat = new THREE.SpriteMaterial({
 function randomLanternSpawn() {
   const pick = Math.random();
   if (pick < 0.45) {
-    // behind buildings
     const side = Math.random() < 0.5 ? -1 : 1;
     return new THREE.Vector3(
       side * (ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk + ISTANBUL.buildingDepth + 2 + Math.random() * 6),
@@ -67,14 +61,12 @@ function randomLanternSpawn() {
     );
   }
   if (pick < 0.75) {
-    // around Galata tower
     return new THREE.Vector3(
       (Math.random() - 0.5) * 16,
       1 + Math.random() * 0.8,
       -70 + (Math.random() - 0.5) * 14
     );
   }
-  // anywhere on the street
   return new THREE.Vector3(
     (Math.random() - 0.5) * (ISTANBUL.roadWidth - 2),
     1 + Math.random() * 0.4,
@@ -85,18 +77,20 @@ function randomLanternSpawn() {
 function createLantern() {
   const group = new THREE.Group();
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 0.9, 8), lanternMat);
-  const frame = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.0, 8), lanternFrameMat);
-  frame.scale.set(1.05, 1.05, 1.05);
+  // glowing paper body (no frame)
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.9, 10), lanternPaperMat);
+  group.add(body);
 
-  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), lanternMat);
+  // inner flame glow
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), lanternPaperMat);
   flame.position.y = -0.2;
+  group.add(flame);
 
+  // soft outer glow
   const glow = new THREE.Sprite(lanternGlowMat.clone());
-  glow.scale.set(1.6, 1.6, 1);
+  glow.scale.set(1.8, 1.8, 1);
   glow.position.y = 0.1;
-
-  group.add(frame, body, flame, glow);
+  group.add(glow);
 
   const pos = randomLanternSpawn();
   group.position.copy(pos);
@@ -105,9 +99,9 @@ function createLantern() {
 
   lanterns.push({
     mesh: group,
-    vel: new THREE.Vector3((Math.random() - 0.5) * 0.25, 1.0 + Math.random() * 0.8, (Math.random() - 0.5) * 0.25),
+    vel: new THREE.Vector3((Math.random() - 0.5) * 0.22, 1.0 + Math.random() * 0.8, (Math.random() - 0.5) * 0.22),
     sway: Math.random() * Math.PI * 2,
-    life: 10 + Math.random() * 10
+    life: 14 + Math.random() * 10
   });
 }
 
@@ -138,7 +132,7 @@ function updateLanternShow(delta, timeSeconds) {
     l.mesh.position.addScaledVector(l.vel, delta);
     l.life -= delta;
 
-    if (l.life <= 0 || l.mesh.position.y > 80) {
+    if (l.life <= 0 || l.mesh.position.y > 90) {
       scene.remove(l.mesh);
       lanterns.splice(i, 1);
     }
