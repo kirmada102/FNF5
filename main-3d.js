@@ -687,24 +687,56 @@ function createRose() {
 }
 
 const fpHands = new THREE.Group();
+
+function createFpHand() {
+  const hand = new THREE.Group();
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.1), skinMat);
+  palm.castShadow = true;
+  hand.add(palm);
+
+  const fingerGeo = new THREE.BoxGeometry(0.025, 0.015, 0.045);
+  const nailGeo = new THREE.BoxGeometry(0.028, 0.008, 0.015);
+  const offsets = [-0.045, -0.022, 0, 0.022, 0.045];
+
+  offsets.forEach((x) => {
+    const finger = new THREE.Mesh(fingerGeo, skinMat);
+    finger.position.set(x, 0.02, -0.07);
+    hand.add(finger);
+
+    const nail = new THREE.Mesh(nailGeo, nailMat);
+    nail.position.set(x, 0.024, -0.085);
+    hand.add(nail);
+  });
+
+  return hand;
+}
+
 function createFpArm(side) {
   const arm = new THREE.Group();
-  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.4), sleeveMat);
+
+  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.25), sleeveMat);
   sleeve.position.set(0, 0, 0);
   sleeve.castShadow = true;
   arm.add(sleeve);
 
-  const hand = createHandModel({ skin: skinMat, nails: nailMat, withNails: true });
-  hand.position.set(0, -0.05, -0.28);
+  const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.2), skinMat);
+  forearm.position.set(0, -0.02, -0.15);
+  forearm.castShadow = true;
+  arm.add(forearm);
+
+  const hand = createFpHand();
+  hand.position.set(0, -0.04, -0.28);
   hand.rotation.x = 0.2;
   arm.add(hand);
 
-  arm.position.set(side * 0.25, -0.22, -0.6);
-  arm.rotation.set(0.1, side * 0.3, 0);
+  arm.position.set(side * 0.45, -0.32, -0.9); // farther apart + smaller
+  arm.rotation.set(0.35, side * 0.25, side * 0.08);
   return arm;
 }
+
 fpHands.add(createFpArm(-1), createFpArm(1));
 camera.add(fpHands);
+
 
 const encounters = [];
 let roseEncounter = null;
@@ -1149,6 +1181,25 @@ function updateCamera() {
   }
 }
 
+function updateFpHands(timeSeconds) {
+  if (!fpHands.visible) return;
+
+  const speed = Math.hypot(player.velocity.x, player.velocity.z) / MOVE_SPEED;
+  const swing = Math.sin(timeSeconds * 10) * 0.06 * speed;
+  const bob = Math.cos(timeSeconds * 10) * 0.03 * speed;
+
+  fpHands.children.forEach((arm, i) => {
+    const side = i === 0 ? -1 : 1;
+    arm.position.x = side * 0.45 + swing * side;
+    arm.position.y = -0.32 + bob;
+    arm.position.z = -0.9 + Math.abs(swing) * 0.2;
+
+    arm.rotation.x = 0.35 + bob * 2;
+    arm.rotation.z = side * (0.08 + swing * 1.2);
+  });
+}
+
+
 function updateClouds(delta) {
   clouds.forEach((c) => {
     c.mesh.position.x += c.speed * delta;
@@ -1312,6 +1363,8 @@ function animate() {
   updatePetals(delta, elapsed);
   updateHearts(elapsed);
   updateHud(levelTime);
+  updateFpHands(elapsed);
+
 
   if (heartsCollected >= getLevelTarget()) {
     paused = true;
