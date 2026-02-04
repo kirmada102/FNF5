@@ -87,6 +87,11 @@ const grassTopTex = createBlockTexture(['#5fbf5a', '#59b354', '#64c563']);
 const grassSideTex = createBlockTexture(['#4da04b', '#5fbf5a', '#8a5a2b']);
 const dirtTex = createBlockTexture(['#8a5a2b', '#7a4a22', '#6b3e1d']);
 const trunkTex = createBlockTexture(['#8a5a2b', '#7a4a22', '#6b3e1d']);
+const trunkTex = createBlockTexture(['#8a5a2b', '#7a4a22', '#6b3e1d']);
+const blossomTex = createBlockTexture(['#f8c6db', '#f6b3d0', '#f29ac2', '#e57aa5', '#fbd9e8', '#ffd6e7']);
+
+const trunkMat = new THREE.MeshStandardMaterial({ map: trunkTex });
+const blossomMat = new THREE.MeshStandardMaterial({ map: blossomTex });
 const leafTex = createBlockTexture(['#2f7a36', '#3c8f3f', '#2b6d2f']);
 const cloudTex = createBlockTexture(['#ffffff', '#f4f6f9', '#e8f1ff']);
 
@@ -122,16 +127,19 @@ const treeColliders = [];
 
 function createTree(x, z) {
   const tree = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 2), trunkMat);
-  trunk.position.y = 4;
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(2.4, 9, 2.4), trunkMat);
+  trunk.position.y = 4.5;
   trunk.castShadow = true;
   trunk.receiveShadow = true;
   tree.add(trunk);
 
-  for (let ix = -1; ix <= 1; ix++) {
-    for (let iz = -1; iz <= 1; iz++) {
-      for (let iy = 0; iy <= 1; iy++) {
-        const leaf = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), leafMat);
+  const canopyGeo = new THREE.BoxGeometry(2, 2, 2);
+  for (let ix = -2; ix <= 2; ix++) {
+    for (let iz = -2; iz <= 2; iz++) {
+      for (let iy = 0; iy <= 2; iy++) {
+        const dist = Math.sqrt(ix * ix + iz * iz + (iy - 1) * (iy - 1));
+        if (dist > 2.6) continue;
+        const leaf = new THREE.Mesh(canopyGeo, blossomMat);
         leaf.position.set(ix * 2, 8 + iy * 2, iz * 2);
         leaf.castShadow = true;
         tree.add(leaf);
@@ -139,11 +147,23 @@ function createTree(x, z) {
     }
   }
 
+  for (let i = 0; i < 10; i++) {
+    const petal = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), blossomMat);
+    petal.position.set(
+      (Math.random() - 0.5) * 10,
+      6 + Math.random() * 4,
+      (Math.random() - 0.5) * 10
+    );
+    petal.castShadow = true;
+    tree.add(petal);
+  }
+
   tree.position.set(x, 0, z);
   scene.add(tree);
   trees.push(tree);
-  treeColliders.push({ x, z, r: 1.4 });
+  treeColliders.push({ x, z, r: 1.8 });
 }
+
 
 for (let i = 0; i < 70; i++) {
   const x = (Math.random() - 0.5) * (WORLD_SIZE - 40);
@@ -173,6 +193,95 @@ for (let i = 0; i < 14; i++) {
   createCloud(
     (Math.random() - 0.5) * WORLD_SIZE,
     26 + Math.random() * 20,
+    (Math.random() - 0.5) * WORLD_SIZE
+  );
+}
+
+const catColors = [0xf2c89b, 0xd1a679, 0x999999, 0x222222, 0xf5f5f5];
+const catMats = catColors.map((color) => new THREE.MeshStandardMaterial({ color }));
+const cats = [];
+
+function createCat(x, z, follow = false) {
+  const group = new THREE.Group();
+  const mat = catMats[Math.floor(Math.random() * catMats.length)];
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 0.6), mat);
+  body.position.y = 0.35;
+  body.castShadow = true;
+  group.add(body);
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.5), mat);
+  head.position.set(0.9, 0.55, 0);
+  head.castShadow = true;
+  group.add(head);
+
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.15), mat);
+  tail.position.set(-0.9, 0.45, 0);
+  tail.castShadow = true;
+  group.add(tail);
+
+  const legGeo = new THREE.BoxGeometry(0.15, 0.35, 0.15);
+  for (const dx of [-0.5, 0.5]) {
+    for (const dz of [-0.2, 0.2]) {
+      const leg = new THREE.Mesh(legGeo, mat);
+      leg.position.set(dx, 0.15, dz);
+      leg.castShadow = true;
+      group.add(leg);
+    }
+  }
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+
+  cats.push({
+    mesh: group,
+    tail,
+    mode: follow ? 'follow' : 'wander',
+    speed: follow ? 2.1 : 1.2,
+    target: new THREE.Vector3(x, 0, z),
+    timer: Math.random() * 4 + 2,
+    followOffset: new THREE.Vector3(Math.random() * 3 - 1.5, 0, Math.random() * 3 - 1.5)
+  });
+}
+
+for (let i = 0; i < 6; i++) {
+  const x = (Math.random() - 0.5) * (WORLD_SIZE - 80);
+  const z = (Math.random() - 0.5) * (WORLD_SIZE - 80);
+  createCat(x, z, i < 2);
+}
+
+const birdMat = new THREE.MeshStandardMaterial({ color: 0xf7d170 });
+const birds = [];
+
+function createBird(x, y, z) {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.4), birdMat);
+  body.castShadow = true;
+  group.add(body);
+
+  const wingGeo = new THREE.BoxGeometry(0.6, 0.1, 1.2);
+  const leftWing = new THREE.Mesh(wingGeo, birdMat);
+  leftWing.position.set(0, 0, -0.8);
+  const rightWing = new THREE.Mesh(wingGeo, birdMat);
+  rightWing.position.set(0, 0, 0.8);
+  group.add(leftWing, rightWing);
+
+  group.position.set(x, y, z);
+  scene.add(group);
+
+  birds.push({
+    mesh: group,
+    leftWing,
+    rightWing,
+    speed: 6 + Math.random() * 4,
+    phase: Math.random() * Math.PI * 2
+  });
+}
+
+for (let i = 0; i < 10; i++) {
+  createBird(
+    (Math.random() - 0.5) * WORLD_SIZE,
+    18 + Math.random() * 10,
     (Math.random() - 0.5) * WORLD_SIZE
   );
 }
@@ -410,6 +519,71 @@ function updateClouds(delta) {
     }
   });
 }
+function updateCats(delta, timeSeconds) {
+  const limit = WORLD_SIZE / 2 - 10;
+  cats.forEach((cat) => {
+    if (cat.mode === 'wander') {
+      cat.timer -= delta;
+      const dist = cat.mesh.position.distanceTo(cat.target);
+      if (cat.timer <= 0 || dist < 0.6) {
+        cat.target.set(
+          (Math.random() - 0.5) * (WORLD_SIZE - 60),
+          0,
+          (Math.random() - 0.5) * (WORLD_SIZE - 60)
+        );
+        cat.timer = Math.random() * 4 + 2;
+      }
+    } else {
+      cat.target.copy(player.position).add(cat.followOffset);
+      cat.target.y = 0;
+    }
+
+    const dir = cat.target.clone().sub(cat.mesh.position);
+    dir.y = 0;
+    const dist = dir.length();
+    if (dist > 0.05) {
+      dir.normalize();
+      cat.mesh.position.addScaledVector(dir, cat.speed * delta);
+      cat.mesh.rotation.y = Math.atan2(dir.x, dir.z);
+    }
+
+    for (const t of treeColliders) {
+      const dx = cat.mesh.position.x - t.x;
+      const dz = cat.mesh.position.z - t.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 0 && d < t.r + 0.7) {
+        const push = (t.r + 0.7 - d) / d;
+        cat.mesh.position.x += dx * push;
+        cat.mesh.position.z += dz * push;
+      }
+    }
+
+    cat.mesh.position.x = Math.max(-limit, Math.min(limit, cat.mesh.position.x));
+    cat.mesh.position.z = Math.max(-limit, Math.min(limit, cat.mesh.position.z));
+    cat.mesh.position.y = 0;
+    cat.tail.rotation.y = Math.sin(timeSeconds * 6 + cat.mesh.position.x * 0.2) * 0.6;
+  });
+}
+
+function updateBirds(delta, timeSeconds) {
+  const wrap = WORLD_SIZE / 2 + 40;
+  birds.forEach((bird) => {
+    bird.phase += delta * 6;
+    const flap = Math.sin(bird.phase) * 0.8;
+    bird.leftWing.rotation.x = flap;
+    bird.rightWing.rotation.x = -flap;
+
+    bird.mesh.position.x += bird.speed * delta;
+    bird.mesh.position.z += Math.sin(timeSeconds + bird.phase) * 0.3 * delta;
+
+    if (bird.mesh.position.x > wrap) {
+      bird.mesh.position.x = -wrap;
+      bird.mesh.position.z = (Math.random() - 0.5) * WORLD_SIZE;
+      bird.mesh.position.y = 18 + Math.random() * 10;
+      bird.speed = 6 + Math.random() * 4;
+    }
+  });
+}
 
 function updateHearts(timeSeconds) {
   for (let i = hearts.length - 1; i >= 0; i -= 1) {
@@ -445,6 +619,10 @@ function animate() {
   updateClouds(delta);
   updateHearts(elapsed);
   updateHud(levelTime);
+  updateClouds(delta);
+  updateCats(delta, elapsed);
+  updateBirds(delta, elapsed);
+
 
   if (heartsCollected >= getLevelTarget()) {
     paused = true;
