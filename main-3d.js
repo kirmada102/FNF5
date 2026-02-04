@@ -860,24 +860,17 @@ function clearEncounters() {
 function setupEncountersForLevel() {
   clearEncounters();
   const target = getLevelTarget();
-  const triggers = [
-    Math.ceil(target * 0.25),
-    Math.ceil(target * 0.5),
-    Math.ceil(target * 0.75),
-    target - 1
-  ];
-  const unique = [...new Set(triggers)].filter((t) => t > 0 && t < target);
-  unique.forEach((t) => {
-    encounters.push({
-      trigger: t,
-      active: false,
-      done: false,
-      state: 'idle',
-      timer: 0,
-      boy: null,
-      girl: null,
-      bubble: null
-    });
+
+  // only one encounter
+  encounters.push({
+    trigger: Math.ceil(target * 0.6),
+    active: false,
+    done: false,
+    state: 'idle',
+    timer: 0,
+    boy: null,
+    girl: null,
+    bubble: null
   });
 
   roseEncounter = {
@@ -891,6 +884,7 @@ function setupEncountersForLevel() {
     dropRose: null
   };
 }
+
 
 function startEncounter(enc) {
   const boy = createBoy();
