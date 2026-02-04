@@ -114,7 +114,7 @@ ground.position.y = groundTop - 3;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const grassBladeCount = 40000;
+const grassBladeCount = 140000;
 const grassGeo = new THREE.PlaneGeometry(0.08, 0.35);
 const grassMat = new THREE.MeshStandardMaterial({ color: 0x4aa24f, side: THREE.DoubleSide });
 const grassA = new THREE.InstancedMesh(grassGeo, grassMat, grassBladeCount);
