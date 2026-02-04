@@ -697,6 +697,82 @@ for (let i = 0; i < 10; i++) {
     (Math.random() - 0.5) * WORLD_SIZE
   );
 }
+// --- Butterflies ---
+const butterflies = [];
+const butterflyCount = 18;
+
+function makeButterflyTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, 32, 32);
+  ctx.fillStyle = '#000000';
+
+  // outline wings
+  ctx.fillRect(6, 8, 6, 12);
+  ctx.fillRect(20, 8, 6, 12);
+
+  ctx.fillStyle = '#ff8fc7';
+  ctx.fillRect(7, 9, 4, 10);
+  ctx.fillRect(21, 9, 4, 10);
+
+  // inner light pink
+  ctx.fillStyle = '#ffd0e8';
+  ctx.fillRect(8, 11, 2, 6);
+  ctx.fillRect(22, 11, 2, 6);
+
+  // body
+  ctx.fillStyle = '#222222';
+  ctx.fillRect(15, 10, 2, 12);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  return tex;
+}
+
+const butterflyTex = makeButterflyTexture();
+const butterflyMat = new THREE.SpriteMaterial({ map: butterflyTex, transparent: true });
+
+function createButterfly(x, y, z) {
+  const sprite = new THREE.Sprite(butterflyMat.clone());
+  sprite.scale.set(1.2, 1.2, 1);
+  sprite.position.set(x, y, z);
+  scene.add(sprite);
+
+  butterflies.push({
+    sprite,
+    phase: Math.random() * Math.PI * 2,
+    speed: 0.6 + Math.random() * 0.8,
+    height: 2 + Math.random() * 2
+  });
+}
+
+for (let i = 0; i < butterflyCount; i++) {
+  createButterfly(
+    (Math.random() - 0.5) * (WORLD_SIZE - 40),
+    2 + Math.random() * 2,
+    (Math.random() - 0.5) * (WORLD_SIZE - 40)
+  );
+}
+
+function updateButterflies(delta, timeSeconds) {
+  butterflies.forEach((b) => {
+    b.phase += delta * 6;
+    const flap = Math.sin(b.phase) * 0.4;
+
+    b.sprite.material.rotation = flap;
+    b.sprite.position.y = b.height + Math.sin(timeSeconds * 2 + b.phase) * 0.4;
+    b.sprite.position.x += Math.cos(b.phase) * b.speed * delta;
+    b.sprite.position.z += Math.sin(b.phase * 0.7) * b.speed * delta;
+
+    if (Math.abs(b.sprite.position.x) > WORLD_SIZE / 2) b.sprite.position.x *= -1;
+    if (Math.abs(b.sprite.position.z) > WORLD_SIZE / 2) b.sprite.position.z *= -1;
+  });
+}
+
 
 const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd1b3 });
 const nailMat = new THREE.MeshStandardMaterial({ color: 0xff7eb3 });
@@ -1888,6 +1964,8 @@ function animate() {
   updateHearts(elapsed);
   updateHud(levelTime);
   updateLanternShow(delta, elapsed);
+  updateButterflies(delta, elapsed);
+
 
 
   if (heartsCollected >= getLevelTarget()) {
