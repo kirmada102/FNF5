@@ -118,9 +118,6 @@ ground.position.y = groundTop - 3;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const trunkMat = new THREE.MeshStandardMaterial({ map: trunkTex });
-const leafMat = new THREE.MeshStandardMaterial({ map: leafTex });
-const cloudMat = new THREE.MeshStandardMaterial({ map: cloudTex, transparent: true, opacity: 0.95 });
 
 const trees = [];
 const treeColliders = [];
