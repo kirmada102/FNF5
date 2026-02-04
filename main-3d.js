@@ -24,6 +24,81 @@ const ISTANBUL = {
   buildingDepth: 10
 };
 
+const LANTERN_DURATION = 20;
+let lanternShowActive = false;
+let lanternShowDone = false;
+let lanternShowTimer = 0;
+const lanterns = [];
+
+const lanternMat = new THREE.MeshStandardMaterial({
+  color: 0xffc28b,
+  emissive: 0xff8a3a,
+  emissiveIntensity: 1.1,
+  transparent: true,
+  opacity: 0.95
+});
+const lanternFrameMat = new THREE.MeshStandardMaterial({ color: 0x7a3b1d });
+const lanternGlowMat = new THREE.MeshBasicMaterial({ color: 0xffb067, transparent: true, opacity: 0.35 });
+
+function createLantern() {
+  const group = new THREE.Group();
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.6), lanternMat);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.7), lanternFrameMat);
+  frame.scale.set(1.05, 1.05, 1.05);
+
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), lanternGlowMat);
+  flame.position.y = -0.15;
+
+  group.add(frame, body, flame);
+
+  const side = Math.random() < 0.5 ? -1 : 1;
+  const x = side * (ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk + ISTANBUL.buildingDepth + 1.8);
+  const z = (Math.random() - 0.5) * (ISTANBUL.length - 10);
+  group.position.set(x, 1 + Math.random() * 0.3, z);
+
+  scene.add(group);
+
+  lanterns.push({
+    mesh: group,
+    vel: new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.8 + Math.random() * 0.6, (Math.random() - 0.5) * 0.2),
+    sway: Math.random() * Math.PI * 2,
+    life: 6 + Math.random() * 6
+  });
+}
+
+function startLanternShow() {
+  lanternShowActive = true;
+  lanternShowDone = false;
+  lanternShowTimer = LANTERN_DURATION;
+}
+
+function updateLanternShow(delta, timeSeconds) {
+  if (!lanternShowActive) return;
+
+  lanternShowTimer -= delta;
+  const spawnCount = Math.floor(10 * delta) + (Math.random() < 0.4 ? 1 : 0);
+  for (let i = 0; i < spawnCount; i++) createLantern();
+
+  for (let i = lanterns.length - 1; i >= 0; i--) {
+    const l = lanterns[i];
+    l.sway += delta * 2;
+    l.mesh.position.x += Math.sin(l.sway) * 0.02;
+    l.mesh.position.addScaledVector(l.vel, delta);
+    l.life -= delta;
+
+    if (l.life <= 0 || l.mesh.position.y > 60) {
+      scene.remove(l.mesh);
+      lanterns.splice(i, 1);
+    }
+  }
+
+  if (lanternShowTimer <= 0) {
+    lanternShowActive = false;
+    lanternShowDone = true;
+  }
+}
+
 let inIstanbul = false;
 let istanbulGroup = null;
 let starField = null;
@@ -1201,13 +1276,136 @@ function createStarField() {
   scene.add(starField);
 }
 
+function createBrickTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#7b5a4a';
+  ctx.fillRect(0, 0, size, size);
+
+  for (let y = 0; y < size; y += 12) {
+    for (let x = 0; x < size; x += 24) {
+      ctx.fillStyle = Math.random() < 0.5 ? '#6f5145' : '#8c6a5a';
+      ctx.fillRect(x + (y % 24 === 0 ? 0 : 12), y + 2, 20, 8);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  return tex;
+}
+
+function createPlasterTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#b89b7a';
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 2000; i++) {
+    ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.05})`;
+    ctx.fillRect(Math.random() * size, Math.random() * size, 2, 2);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  return tex;
+}
+
+function createNeonSign(text, color) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 32px Arial';
+  const pad = 16;
+  const w = ctx.measureText(text).width + pad * 2;
+  canvas.width = w;
+  canvas.height = 60;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 12;
+  ctx.fillText(text, pad, 40);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(canvas.width / 35, canvas.height / 35),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+  );
+}
+
+function addBalcony(group, x, y, z, side) {
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 0.15, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0x333333 })
+  );
+  base.position.set(x, y, z);
+  group.add(base);
+
+  const rail = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 0.4, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x222222 })
+  );
+  rail.position.set(x, y + 0.25, z + side * 0.55);
+  group.add(rail);
+
+  const pot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12, 0.16, 0.18, 8),
+    new THREE.MeshStandardMaterial({ color: 0x6a3b2a })
+  );
+  pot.position.set(x - 0.6, y + 0.2, z);
+  group.add(pot);
+
+  const plant = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x3e8f3e })
+  );
+  plant.position.set(x - 0.6, y + 0.35, z);
+  group.add(plant);
+}
+
+function addCafeSet(group, x, z) {
+  const table = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.45, 0.45, 0.08, 10),
+    new THREE.MeshStandardMaterial({ color: 0x3b2b1f })
+  );
+  table.position.set(x, 0.4, z);
+  group.add(table);
+
+  const chairGeo = new THREE.BoxGeometry(0.3, 0.4, 0.3);
+  const chairMat = new THREE.MeshStandardMaterial({ color: 0x2f2f2f });
+  for (const dx of [-0.6, 0.6]) {
+    const chair = new THREE.Mesh(chairGeo, chairMat);
+    chair.position.set(x + dx, 0.2, z);
+    group.add(chair);
+  }
+
+  const lamp = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffcc88, emissive: 0xffcc88, emissiveIntensity: 1 })
+  );
+  lamp.position.set(x, 0.55, z);
+  group.add(lamp);
+}
+
 function createIstanbulStreet() {
   if (istanbulGroup) return;
   istanbulGroup = new THREE.Group();
 
   const roadTex = createCobbleTexture();
   const roadMat = new THREE.MeshStandardMaterial({ map: roadTex, roughness: 1 });
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(ISTANBUL.roadWidth, ISTANBUL.length), roadMat);
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(ISTANBUL.roadWidth, ISTANBUL.length),
+    roadMat
+  );
   road.rotation.x = -Math.PI / 2;
   road.position.set(ISTANBUL.origin.x, 0.01, ISTANBUL.origin.z);
   istanbulGroup.add(road);
@@ -1222,15 +1420,23 @@ function createIstanbulStreet() {
   rightSide.position.set(ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk / 2, 0.02, 0);
   istanbulGroup.add(leftSide, rightSide);
 
+  const brickTex = createBrickTexture();
+  const plasterTex = createPlasterTexture();
+
   const colors = [0xc94b4b, 0xd6b65d, 0x8fbf7d, 0xb27fca, 0x7ea7d8];
   for (let z = -60; z < 60; z += 14) {
     for (const side of [-1, 1]) {
       const w = 8 + Math.random() * 4;
       const h = 10 + Math.random() * 12;
       const d = ISTANBUL.buildingDepth;
+
+      const useBrick = Math.random() < 0.4;
       const buildingMat = new THREE.MeshStandardMaterial({
-        color: colors[Math.floor(Math.random() * colors.length)]
+        color: colors[Math.floor(Math.random() * colors.length)],
+        map: useBrick ? brickTex : plasterTex,
+        roughness: 1
       });
+
       const building = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMat);
       building.position.set(
         side * (ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk + w / 2),
@@ -1256,26 +1462,39 @@ function createIstanbulStreet() {
           );
           istanbulGroup.add(win);
         }
+
+        if (Math.random() < 0.35) {
+          addBalcony(
+            istanbulGroup,
+            building.position.x,
+            fy + 0.7,
+            building.position.z + side * (d / 2 + 0.7),
+            side
+          );
+        }
       }
 
-      const lanternColors = [0xff4444, 0x4488ff, 0xffdd55];
-      const lantern = new THREE.Mesh(
-        new THREE.SphereGeometry(0.3, 8, 8),
-        new THREE.MeshStandardMaterial({
-          color: lanternColors[Math.floor(Math.random() * lanternColors.length)],
-          emissive: 0xffcc55,
-          emissiveIntensity: 0.6
-        })
-      );
-      lantern.position.set(
-        building.position.x + side * (d / 2 + 0.8),
-        2.5,
-        building.position.z
-      );
-      istanbulGroup.add(lantern);
+      if (Math.random() < 0.4) {
+        const neon = createNeonSign('CAFFE CAFFE', '#ff66cc');
+        neon.position.set(
+          building.position.x,
+          2.2,
+          building.position.z + side * (d / 2 + 0.6)
+        );
+        istanbulGroup.add(neon);
+      }
+
+      if (Math.random() < 0.4) {
+        addCafeSet(
+          istanbulGroup,
+          side * (ISTANBUL.roadWidth / 2 + 2.2),
+          building.position.z + (Math.random() - 0.5) * 4
+        );
+      }
     }
   }
 
+  // String lights
   for (let z = -55; z <= 55; z += 12) {
     for (let i = 0; i < 6; i++) {
       const bulb = new THREE.Mesh(
@@ -1291,6 +1510,7 @@ function createIstanbulStreet() {
     }
   }
 
+  // Galata Tower
   const towerGroup = new THREE.Group();
   const towerBase = new THREE.Mesh(
     new THREE.CylinderGeometry(6, 7, 24, 16),
@@ -1614,6 +1834,7 @@ function animate() {
   updateWind(delta);
   updateCats(delta, elapsed);
   updateBirds(delta, elapsed);
+  updateLanternShow(delta, elapsed);
   updateEncounters(delta);
   updateRoseEncounter(delta, elapsed);
   updatePetals(delta, elapsed);
@@ -1621,8 +1842,14 @@ function animate() {
   updateHud(levelTime);
 
   if (heartsCollected >= getLevelTarget()) {
+  if (inIstanbul) {
+    if (!lanternShowActive && !lanternShowDone) startLanternShow();
+    if (lanternShowDone) handleStageCompletion();
+    } else {
     handleStageCompletion();
+    }
   }
+
 
   renderer.render(scene, camera);
 }
