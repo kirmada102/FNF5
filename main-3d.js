@@ -602,7 +602,7 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
 
-  if (paused || !pointerLocked) {
+  if (paused) {
     renderer.render(scene, camera);
     return;
   }
