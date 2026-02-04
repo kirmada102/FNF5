@@ -173,6 +173,11 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => (keys[e.code] = false));
 
 const renderer = new THREE.WebGLRenderer({ antialias: false });
+
+// add these two lines here
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.shadowMap.enabled = true;
