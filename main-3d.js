@@ -12,6 +12,10 @@ const PLAYER_RADIUS = 0.45;
 const MOVE_SPEED = 7.5;
 const JUMP_SPEED = 6.8;
 const GRAVITY = -18.0;
+const lanternSound = new Audio('lantern-show.mp3');
+lanternSound.loop = true;
+lanternSound.volume = 0.7;
+
 
 const FOREST_TARGET = 10;
 const ISTANBUL_TARGET = 10;
@@ -31,39 +35,79 @@ let lanternShowTimer = 0;
 const lanterns = [];
 
 const lanternMat = new THREE.MeshStandardMaterial({
-  color: 0xffc28b,
-  emissive: 0xff8a3a,
-  emissiveIntensity: 1.1,
+  color: 0xfff1b5,
+  emissive: 0xffb347,
+  emissiveIntensity: 3.2,
   transparent: true,
   opacity: 0.95
 });
-const lanternFrameMat = new THREE.MeshStandardMaterial({ color: 0x7a3b1d });
-const lanternGlowMat = new THREE.MeshBasicMaterial({ color: 0xffb067, transparent: true, opacity: 0.35 });
+
+const lanternFrameMat = new THREE.MeshStandardMaterial({
+  color: 0x7a3b1d,
+  roughness: 0.8
+});
+
+const lanternGlowMat = new THREE.SpriteMaterial({
+  color: 0xffc65c,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
+});
+
+function randomLanternSpawn() {
+  const pick = Math.random();
+  if (pick < 0.45) {
+    // behind buildings
+    const side = Math.random() < 0.5 ? -1 : 1;
+    return new THREE.Vector3(
+      side * (ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk + ISTANBUL.buildingDepth + 2 + Math.random() * 6),
+      1 + Math.random() * 0.6,
+      (Math.random() - 0.5) * (ISTANBUL.length - 10)
+    );
+  }
+  if (pick < 0.75) {
+    // around Galata tower
+    return new THREE.Vector3(
+      (Math.random() - 0.5) * 16,
+      1 + Math.random() * 0.8,
+      -70 + (Math.random() - 0.5) * 14
+    );
+  }
+  // anywhere on the street
+  return new THREE.Vector3(
+    (Math.random() - 0.5) * (ISTANBUL.roadWidth - 2),
+    1 + Math.random() * 0.4,
+    (Math.random() - 0.5) * (ISTANBUL.length - 10)
+  );
+}
 
 function createLantern() {
   const group = new THREE.Group();
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.6), lanternMat);
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.7), lanternFrameMat);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 0.9, 8), lanternMat);
+  const frame = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.0, 8), lanternFrameMat);
   frame.scale.set(1.05, 1.05, 1.05);
 
-  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), lanternGlowMat);
-  flame.position.y = -0.15;
+  const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), lanternMat);
+  flame.position.y = -0.2;
 
-  group.add(frame, body, flame);
+  const glow = new THREE.Sprite(lanternGlowMat.clone());
+  glow.scale.set(1.6, 1.6, 1);
+  glow.position.y = 0.1;
 
-  const side = Math.random() < 0.5 ? -1 : 1;
-  const x = side * (ISTANBUL.roadWidth / 2 + ISTANBUL.sidewalk + ISTANBUL.buildingDepth + 1.8);
-  const z = (Math.random() - 0.5) * (ISTANBUL.length - 10);
-  group.position.set(x, 1 + Math.random() * 0.3, z);
+  group.add(frame, body, flame, glow);
+
+  const pos = randomLanternSpawn();
+  group.position.copy(pos);
 
   scene.add(group);
 
   lanterns.push({
     mesh: group,
-    vel: new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.8 + Math.random() * 0.6, (Math.random() - 0.5) * 0.2),
+    vel: new THREE.Vector3((Math.random() - 0.5) * 0.25, 1.0 + Math.random() * 0.8, (Math.random() - 0.5) * 0.25),
     sway: Math.random() * Math.PI * 2,
-    life: 6 + Math.random() * 6
+    life: 10 + Math.random() * 10
   });
 }
 
@@ -71,23 +115,30 @@ function startLanternShow() {
   lanternShowActive = true;
   lanternShowDone = false;
   lanternShowTimer = LANTERN_DURATION;
+
+  lanternSound.currentTime = 0;
+  lanternSound.play().catch(() => {});
 }
 
 function updateLanternShow(delta, timeSeconds) {
   if (!lanternShowActive) return;
 
   lanternShowTimer -= delta;
-  const spawnCount = Math.floor(10 * delta) + (Math.random() < 0.4 ? 1 : 0);
+
+  const spawnCount = Math.floor(45 * delta) + (Math.random() < 0.7 ? 1 : 0);
   for (let i = 0; i < spawnCount; i++) createLantern();
 
   for (let i = lanterns.length - 1; i >= 0; i--) {
     const l = lanterns[i];
     l.sway += delta * 2;
-    l.mesh.position.x += Math.sin(l.sway) * 0.02;
+    const swirl = Math.sin(timeSeconds * 1.2 + l.sway) * 0.04;
+    l.mesh.position.x += swirl;
+    l.mesh.position.z += Math.cos(l.sway) * 0.02;
+
     l.mesh.position.addScaledVector(l.vel, delta);
     l.life -= delta;
 
-    if (l.life <= 0 || l.mesh.position.y > 60) {
+    if (l.life <= 0 || l.mesh.position.y > 80) {
       scene.remove(l.mesh);
       lanterns.splice(i, 1);
     }
@@ -96,8 +147,11 @@ function updateLanternShow(delta, timeSeconds) {
   if (lanternShowTimer <= 0) {
     lanternShowActive = false;
     lanternShowDone = true;
+    lanternSound.pause();
+    lanternSound.currentTime = 0;
   }
 }
+
 
 let inIstanbul = false;
 let istanbulGroup = null;
@@ -1834,6 +1888,8 @@ function animate() {
   updatePetals(delta, elapsed);
   updateHearts(elapsed);
   updateHud(levelTime);
+  updateLanternShow(delta, elapsed);
+
 
   if (heartsCollected >= getLevelTarget()) {
   if (inIstanbul) {
