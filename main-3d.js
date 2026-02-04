@@ -114,7 +114,7 @@ ground.position.y = groundTop - 3;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const grassBladeCount = 140000;
+const grassBladeCount = 40000;
 const grassGeo = new THREE.PlaneGeometry(0.08, 0.35);
 const grassMat = new THREE.MeshStandardMaterial({ color: 0x4aa24f, side: THREE.DoubleSide });
 const grassA = new THREE.InstancedMesh(grassGeo, grassMat, grassBladeCount);
@@ -740,7 +740,6 @@ function setupEncountersForLevel() {
     });
   });
 
-  const target = getLevelTarget();
   roseEncounter = {
     trigger: Math.max(1, Math.floor(target * 0.5)),
     active: false,
@@ -752,6 +751,7 @@ function setupEncountersForLevel() {
     dropRose: null
   };
 }
+
 
 function startEncounter(enc) {
   const boy = createBoy();
