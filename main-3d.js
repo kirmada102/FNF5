@@ -176,25 +176,6 @@ scatterGrass(grassA, grassLayerA, 0.12, 0.2);
 scatterGrass(grassB, grassLayerB, 0.16, 0.26);
 scatterGrass(grassC, grassLayerC, 0.2, 0.3);
 
-
-  for (let i = 0; i < flowerCount; i++) {
-    const x = (Math.random() - 0.5) * (WORLD_SIZE - 12);
-    const z = (Math.random() - 0.5) * (WORLD_SIZE - 12);
-    const h = 0.35 + Math.random() * 0.25;
-    dummy.position.set(x, h * 0.5, z);
-    dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
-    dummy.scale.set(1, h, 1);
-    dummy.updateMatrix();
-    stemMesh.setMatrixAt(i, dummy.matrix);
-    dummy.position.y = h + 0.08;
-    dummy.scale.set(1, 1, 1);
-    dummy.updateMatrix();
-    flowerMesh.setMatrixAt(i, dummy.matrix);
-  }
-  stemMesh.instanceMatrix.needsUpdate = true;
-  flowerMesh.instanceMatrix.needsUpdate = true;
-}
-
 const trunkMat = new THREE.MeshStandardMaterial({ map: trunkTex });
 const blossomMat = new THREE.MeshStandardMaterial({ map: blossomTex });
 const cloudMat = new THREE.MeshStandardMaterial({ map: cloudTex, transparent: true, opacity: 0.95 });
