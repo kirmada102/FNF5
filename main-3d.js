@@ -321,9 +321,9 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 const GRASS_MULTIPLIER = 20;
-const grassLayerA = 250000 * GRASS_MULTIPLIER;
-const grassLayerB = 200000 * GRASS_MULTIPLIER;
-const grassLayerC = 150000 * GRASS_MULTIPLIER;
+const grassLayerA = 50000 * GRASS_MULTIPLIER;
+const grassLayerB = 20000 * GRASS_MULTIPLIER;
+const grassLayerC = 10000 * GRASS_MULTIPLIER;
 
 const grassGeoA = new THREE.PlaneGeometry(0.05, 0.22);
 const grassGeoB = new THREE.PlaneGeometry(0.06, 0.28);
