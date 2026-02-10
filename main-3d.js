@@ -4,6 +4,61 @@ const overlay = document.getElementById('overlay');
 const overlayContent = document.getElementById('overlayContent');
 let startBtn = document.getElementById('startBtn');
 const hudText = document.getElementById('hudText');
+// =============================================================================
+// Level 1 Music + Volume Controls
+// =============================================================================
+const natureSound = new Audio('naturesound.mp3');
+const musicSound = new Audio('Music.mp3');
+[natureSound, musicSound].forEach((a) => {
+  a.loop = true;
+  a.volume = 0.6;
+});
+
+const audioControls = document.createElement('div');
+audioControls.style.position = 'fixed';
+audioControls.style.right = '12px';
+audioControls.style.top = '12px';
+audioControls.style.zIndex = '2';
+audioControls.style.background = 'rgba(0,0,0,0.55)';
+audioControls.style.padding = '8px 12px';
+audioControls.style.border = '2px solid rgba(255,255,255,0.2)';
+audioControls.style.borderRadius = '8px';
+audioControls.style.fontFamily = 'VT323, monospace';
+audioControls.style.fontSize = '18px';
+audioControls.style.display = 'none';
+audioControls.innerHTML = `
+  <div style="margin-bottom:6px;">
+    Music volume
+    <input id="musicVol" type="range" min="0" max="1" step="0.01" value="0.6" style="width:120px;">
+  </div>
+  <div>
+    Nature sound volume
+    <input id="natureVol" type="range" min="0" max="1" step="0.01" value="0.6" style="width:120px;">
+  </div>
+`;
+document.body.appendChild(audioControls);
+
+const musicVol = audioControls.querySelector('#musicVol');
+const natureVol = audioControls.querySelector('#natureVol');
+musicVol.addEventListener('input', () => (musicSound.volume = Number(musicVol.value)));
+natureVol.addEventListener('input', () => (natureSound.volume = Number(natureVol.value)));
+
+function setAudioControlsVisible(flag) {
+  audioControls.style.display = flag ? 'block' : 'none';
+}
+
+function startLevel1Audio() {
+  natureSound.play().catch(() => {});
+  musicSound.play().catch(() => {});
+}
+
+function stopLevel1Audio() {
+  natureSound.pause();
+  musicSound.pause();
+  natureSound.currentTime = 0;
+  musicSound.currentTime = 0;
+}
+
 const overlayDefaultHTML = overlayContent.innerHTML;
 const overlayDefaultClass = overlayContent.className;
 
@@ -141,6 +196,164 @@ let thirdPerson = false;
 let pauseStart = null;
 
 const keys = {};
+// =============================================================================
+// Touch Controls (Mobile)
+// =============================================================================
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+if (isTouchDevice) {
+  document.body.style.touchAction = 'none';
+
+  const touchUI = document.createElement('div');
+  touchUI.style.position = 'fixed';
+  touchUI.style.inset = '0';
+  touchUI.style.pointerEvents = 'none';
+  touchUI.style.zIndex = '2';
+  document.body.appendChild(touchUI);
+
+  // Left joystick
+  const leftBase = document.createElement('div');
+  const leftStick = document.createElement('div');
+  leftBase.style.position = 'absolute';
+  leftBase.style.left = '5%';
+  leftBase.style.bottom = '10%';
+  leftBase.style.width = '120px';
+  leftBase.style.height = '120px';
+  leftBase.style.borderRadius = '50%';
+  leftBase.style.background = 'rgba(255,255,255,0.08)';
+  leftBase.style.border = '1px solid rgba(255,255,255,0.2)';
+  leftBase.style.pointerEvents = 'auto';
+
+  leftStick.style.position = 'absolute';
+  leftStick.style.left = '50%';
+  leftStick.style.top = '50%';
+  leftStick.style.width = '52px';
+  leftStick.style.height = '52px';
+  leftStick.style.marginLeft = '-26px';
+  leftStick.style.marginTop = '-26px';
+  leftStick.style.borderRadius = '50%';
+  leftStick.style.background = 'rgba(255,255,255,0.25)';
+  leftStick.style.border = '1px solid rgba(255,255,255,0.35)';
+  leftBase.appendChild(leftStick);
+
+  // Right look pad
+  const rightPad = document.createElement('div');
+  rightPad.style.position = 'absolute';
+  rightPad.style.right = '5%';
+  rightPad.style.bottom = '10%';
+  rightPad.style.width = '140px';
+  rightPad.style.height = '140px';
+  rightPad.style.borderRadius = '50%';
+  rightPad.style.background = 'rgba(255,255,255,0.05)';
+  rightPad.style.border = '1px solid rgba(255,255,255,0.2)';
+  rightPad.style.pointerEvents = 'auto';
+
+  // Jump button
+  const jumpBtn = document.createElement('div');
+  jumpBtn.textContent = 'JUMP';
+  jumpBtn.style.position = 'absolute';
+  jumpBtn.style.right = '6%';
+  jumpBtn.style.bottom = '30%';
+  jumpBtn.style.width = '80px';
+  jumpBtn.style.height = '80px';
+  jumpBtn.style.borderRadius = '50%';
+  jumpBtn.style.background = 'rgba(255,77,141,0.8)';
+  jumpBtn.style.border = '2px solid rgba(255,255,255,0.4)';
+  jumpBtn.style.color = '#fff';
+  jumpBtn.style.fontFamily = 'VT323, monospace';
+  jumpBtn.style.fontSize = '18px';
+  jumpBtn.style.display = 'flex';
+  jumpBtn.style.alignItems = 'center';
+  jumpBtn.style.justifyContent = 'center';
+  jumpBtn.style.pointerEvents = 'auto';
+
+  touchUI.appendChild(leftBase);
+  touchUI.appendChild(rightPad);
+  touchUI.appendChild(jumpBtn);
+
+  const moveState = { active: false, x: 0, y: 0, cx: 0, cy: 0 };
+  const lookState = { active: false, x: 0, y: 0 };
+
+  function setMoveKeys(x, y) {
+    const dead = 0.2;
+    keys['KeyW'] = y < -dead;
+    keys['ArrowUp'] = keys['KeyW'];
+    keys['KeyS'] = y > dead;
+    keys['ArrowDown'] = keys['KeyS'];
+    keys['KeyA'] = x < -dead;
+    keys['ArrowLeft'] = keys['KeyA'];
+    keys['KeyD'] = x > dead;
+    keys['ArrowRight'] = keys['KeyD'];
+  }
+
+  leftBase.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    moveState.active = true;
+    moveState.cx = t.clientX;
+    moveState.cy = t.clientY;
+  }, { passive: true });
+
+  leftBase.addEventListener('touchmove', (e) => {
+    if (!moveState.active) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - moveState.cx;
+    const dy = t.clientY - moveState.cy;
+    const max = 45;
+    const clampedX = Math.max(-max, Math.min(max, dx));
+    const clampedY = Math.max(-max, Math.min(max, dy));
+    leftStick.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+    moveState.x = clampedX / max;
+    moveState.y = clampedY / max;
+    setMoveKeys(moveState.x, moveState.y);
+  }, { passive: true });
+
+  leftBase.addEventListener('touchend', () => {
+    moveState.active = false;
+    moveState.x = 0;
+    moveState.y = 0;
+    leftStick.style.transform = 'translate(0, 0)';
+    setMoveKeys(0, 0);
+  }, { passive: true });
+
+  rightPad.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    lookState.active = true;
+    lookState.x = t.clientX;
+    lookState.y = t.clientY;
+  }, { passive: true });
+
+  rightPad.addEventListener('touchmove', (e) => {
+    if (!lookState.active) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - lookState.x;
+    const dy = t.clientY - lookState.y;
+    lookState.x = t.clientX;
+    lookState.y = t.clientY;
+    const sensitivity = 0.004;
+    yaw -= dx * sensitivity;
+    pitch -= dy * sensitivity;
+    pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  }, { passive: true });
+
+  rightPad.addEventListener('touchend', () => {
+    lookState.active = false;
+  }, { passive: true });
+
+  jumpBtn.addEventListener('touchstart', () => {
+    keys['Space'] = true;
+  }, { passive: true });
+
+  jumpBtn.addEventListener('touchend', () => {
+    keys['Space'] = false;
+  }, { passive: true });
+
+  document.addEventListener('touchstart', () => {
+    if (overlay.style.display === 'none') {
+      pointerLocked = true;
+      paused = false;
+    }
+  }, { passive: true });
+}
 window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.code === 'KeyV') thirdPerson = !thirdPerson;
@@ -530,9 +743,9 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 const GRASS_MULTIPLIER = 20;
-const grassLayerA = 250000 * GRASS_MULTIPLIER;
-const grassLayerB = 200000 * GRASS_MULTIPLIER;
-const grassLayerC = 150000 * GRASS_MULTIPLIER;
+const grassLayerA = 50000 * GRASS_MULTIPLIER;
+const grassLayerB = 30000 * GRASS_MULTIPLIER;
+const grassLayerC = 15000 * GRASS_MULTIPLIER;
 
 const grassGeoA = new THREE.PlaneGeometry(0.05, 0.22);
 const grassGeoB = new THREE.PlaneGeometry(0.06, 0.28);
@@ -840,6 +1053,8 @@ for (let i = 0; i < 14; i++) {
     (Math.random() - 0.5) * WORLD_SIZE
   );
 }
+
+createBakery();
 
 const cats = [];
 const catMoods = ['lazy', 'happy', 'jumpy'];
@@ -1532,7 +1747,7 @@ function formatTime(seconds) {
 }
 
 function updateHud(timeSeconds) {
-  const label = inIstanbul ? 'Galata Street' : 'Forest';
+  const label = inIstanbul ? 'Dream City' : 'Love City';
   const target = getLevelTarget();
   hudText.textContent = `${label} | Hearts ${heartsCollected}/${target} | Time ${formatTime(timeSeconds)}`;
 }
@@ -1547,6 +1762,50 @@ function showMessage(title, body, buttonLabel, onClick) {
   `;
   document.getElementById('overlayBtn').onclick = onClick;
 }
+
+function showLevel2Quiz(onCorrect) {
+  if (pointerLocked) document.exitPointerLock();
+  overlay.style.display = 'flex';
+  overlayContent.className = 'overlay-card';
+  overlayContent.style.background = 'rgba(15, 23, 32, 0.92)';
+  overlayContent.style.boxShadow = '0 18px 40px rgba(0,0,0,0.4)';
+  overlayContent.style.padding = '24px 28px';
+
+  overlayContent.innerHTML = `
+    <h2>Level 2 Gate</h2>
+    <p>Do you know when was the first time you said I love you to me?</p>
+    <div style="text-align:left;margin:16px 0;">
+      <label style="display:block;margin:8px 0;">
+        <input type="radio" name="lvl2" value="a"> a. 10th March 2024
+      </label>
+      <label style="display:block;margin:8px 0;">
+        <input type="radio" name="lvl2" value="b"> b. 22nd Jan 2024
+      </label>
+      <label style="display:block;margin:8px 0;">
+        <input type="radio" name="lvl2" value="c"> c. 29th Feb 2024
+      </label>
+    </div>
+    <div id="mcqMsg" style="min-height:18px;"></div>
+    <button id="mcqBtn">Submit</button>
+  `;
+
+  const msg = document.getElementById('mcqMsg');
+  document.getElementById('mcqBtn').onclick = () => {
+    const sel = document.querySelector('input[name="lvl2"]:checked');
+    if (!sel) {
+      msg.textContent = 'Please select an answer.';
+      return;
+    }
+    if (sel.value === 'a') {
+      overlay.style.display = 'none';
+      msg.textContent = '';
+      onCorrect();
+    } else {
+      msg.textContent = 'Wrong answer. Try again.';
+    }
+  };
+}
+
 
 function setIntroCamera() {
   camera.position.set(6, 2.3, BEACH.centerZ + 20);
@@ -1694,6 +1953,7 @@ function setWorldVisible(flag) {
   stemMesh.visible = flag;
   flowerMesh.visible = flag;
   whiteFlowers.visible = flag;
+  if (bakeryGroup) bakeryGroup.visible = flag;
   if (beachGroup) beachGroup.visible = flag;
   trees.forEach((t) => (t.visible = flag));
   clouds.forEach((c) => (c.mesh.visible = flag));
@@ -1720,6 +1980,8 @@ function resetToForest() {
     sunLight.position.copy(sunHome);
   }
 
+  setAudioControlsVisible(true);
+  startLevel1Audio();
   player.position.set(0, PLAYER_HEIGHT / 2, 0);
 }
 
@@ -1967,6 +2229,8 @@ function createIstanbulStreet() {
 }
 
 function enterIstanbulStreet() {
+  stopLevel1Audio();
+  setAudioControlsVisible(false);
   createStarField();
   createIstanbulStreet();
 
@@ -2339,17 +2603,236 @@ function handleStageCompletion() {
   stageLocked = true;
 
   if (!inIstanbul) {
+  showLevel2Quiz(() => {
     enterIstanbulStreet();
     startStage();
-  } else {
-    showMessage('Complete', 'You finished the Galata street scene!', 'Replay', () => {
+    renderer.domElement.requestPointerLock();
+  });
+} else {
+  showMessage(
+    'Game Complete',
+    "Kindly share feedback or game advancement on Kirmada's WhatsApp / Gmail ID - geetppatil3000@gmail.com",
+    'Replay',
+    () => {
       resetToForest();
       startStage();
       renderer.domElement.requestPointerLock();
-    });
-  }
+    }
+  );
 }
 
+// =============================================================================
+// TIRAMISSYOU Bakery
+// =============================================================================
+const BAKERY = {
+  x: -70,
+  z: 40,
+  width: 16,
+  depth: 12,
+  height: 8.5
+};
+let bakeryGroup = null;
+let bakeryDoorPivot = null;
+let bakeryDoorTarget = 0;
+let bakeryBoy = null;
+let bakeryBubble = null;
+let bakeryBubbleTimer = 0;
+let bakeryInShop = false;
+
+function createNeonSignFont(text, color, font = 'bold 30px Calibri') {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = font;
+  const pad = 16;
+  const w = ctx.measureText(text).width + pad * 2;
+  canvas.width = w;
+  canvas.height = 56;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 14;
+  ctx.fillText(text, pad, 38);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(canvas.width / 35, canvas.height / 35),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+  );
+}
+
+function createFrameTexture(label, color = '#5b3d2d', bg = '#f7e7d2') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 16px Calibri';
+  ctx.fillText(label, 12, 52);
+  const tex = new THREE.CanvasTexture(canvas);
+  return tex;
+}
+
+function createBakery() {
+  if (bakeryGroup) return;
+  bakeryGroup = new THREE.Group();
+
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xf4d3b4, roughness: 0.9 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0xc0906f, roughness: 0.8 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0xe9caa5, roughness: 1 });
+
+  // Floor
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(BAKERY.width, BAKERY.depth), floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(BAKERY.x, 0.02, BAKERY.z);
+  bakeryGroup.add(floor);
+
+  // Walls (back, left, right)
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(BAKERY.width, BAKERY.height), wallMat);
+  back.position.set(BAKERY.x, BAKERY.height / 2, BAKERY.z - BAKERY.depth / 2);
+  bakeryGroup.add(back);
+
+  const left = new THREE.Mesh(new THREE.PlaneGeometry(BAKERY.depth, BAKERY.height), wallMat);
+  left.rotation.y = Math.PI / 2;
+  left.position.set(BAKERY.x - BAKERY.width / 2, BAKERY.height / 2, BAKERY.z);
+  bakeryGroup.add(left);
+
+  const right = new THREE.Mesh(new THREE.PlaneGeometry(BAKERY.depth, BAKERY.height), wallMat);
+  right.rotation.y = -Math.PI / 2;
+  right.position.set(BAKERY.x + BAKERY.width / 2, BAKERY.height / 2, BAKERY.z);
+  bakeryGroup.add(right);
+
+  // Front wall pieces (leave doorway in middle)
+  const frontLeft = new THREE.Mesh(new THREE.PlaneGeometry(BAKERY.width * 0.35, BAKERY.height), wallMat);
+  frontLeft.position.set(BAKERY.x - BAKERY.width * 0.325, BAKERY.height / 2, BAKERY.z + BAKERY.depth / 2);
+  frontLeft.rotation.y = Math.PI;
+  bakeryGroup.add(frontLeft);
+
+  const frontRight = new THREE.Mesh(new THREE.PlaneGeometry(BAKERY.width * 0.35, BAKERY.height), wallMat);
+  frontRight.position.set(BAKERY.x + BAKERY.width * 0.325, BAKERY.height / 2, BAKERY.z + BAKERY.depth / 2);
+  frontRight.rotation.y = Math.PI;
+  bakeryGroup.add(frontRight);
+
+  const frontTop = new THREE.Mesh(new THREE.PlaneGeometry(BAKERY.width * 0.3, BAKERY.height * 0.35), wallMat);
+  frontTop.position.set(BAKERY.x, BAKERY.height * 0.825, BAKERY.z + BAKERY.depth / 2);
+  frontTop.rotation.y = Math.PI;
+  bakeryGroup.add(frontTop);
+
+  // Roof
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(BAKERY.width + 0.5, 0.4, BAKERY.depth + 0.5), roofMat);
+  roof.position.set(BAKERY.x, BAKERY.height + 0.2, BAKERY.z);
+  bakeryGroup.add(roof);
+
+  // Glass door (opens when near)
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x99c7ff, transparent: true, opacity: 0.45 });
+  bakeryDoorPivot = new THREE.Group();
+  bakeryDoorPivot.position.set(BAKERY.x - 1.0, 0.1, BAKERY.z + BAKERY.depth / 2 + 0.02);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(2.0, 4.0, 0.08), doorMat);
+  door.position.set(1.0, 2.0, 0);
+  bakeryDoorPivot.add(door);
+  bakeryGroup.add(bakeryDoorPivot);
+
+  // Display case with cakes
+  const caseMat = new THREE.MeshStandardMaterial({ color: 0xd9b08c });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0xb9e0ff, transparent: true, opacity: 0.35 });
+  const caseBase = new THREE.Mesh(new THREE.BoxGeometry(6, 0.9, 1.6), caseMat);
+  caseBase.position.set(BAKERY.x, 0.45, BAKERY.z + 2.0);
+  bakeryGroup.add(caseBase);
+  const caseGlass = new THREE.Mesh(new THREE.BoxGeometry(6, 0.9, 1.6), glassMat);
+  caseGlass.position.set(BAKERY.x, 1.35, BAKERY.z + 2.0);
+  bakeryGroup.add(caseGlass);
+
+  for (let i = 0; i < 10; i++) {
+    const cake = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.25, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x6b3e2e })
+    );
+    cake.position.set(BAKERY.x - 2.5 + i * 0.55, 1.05, BAKERY.z + 2.0);
+    bakeryGroup.add(cake);
+  }
+
+  // Tables + chairs
+  const tableMat = new THREE.MeshStandardMaterial({ color: 0x3b2b1f });
+  const chairMat = new THREE.MeshStandardMaterial({ color: 0x2f2f2f });
+  for (let i = 0; i < 2; i++) {
+    const table = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.1, 12), tableMat);
+    table.position.set(BAKERY.x - 3 + i * 6, 0.5, BAKERY.z - 1.5);
+    bakeryGroup.add(table);
+    for (const dx of [-1.0, 1.0]) {
+      const chair = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), chairMat);
+      chair.position.set(table.position.x + dx, 0.25, table.position.z);
+      bakeryGroup.add(chair);
+    }
+  }
+
+  // Wall frames (tiramisu photos)
+  const frameTex1 = createFrameTexture('TIRAMISU');
+  const frameTex2 = createFrameTexture('CAKE');
+  const frameMat1 = new THREE.MeshStandardMaterial({ map: frameTex1 });
+  const frameMat2 = new THREE.MeshStandardMaterial({ map: frameTex2 });
+  const frame1 = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), frameMat1);
+  frame1.position.set(BAKERY.x - 4.5, 4.0, BAKERY.z - 5.8);
+  bakeryGroup.add(frame1);
+  const frame2 = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), frameMat2);
+  frame2.position.set(BAKERY.x + 4.5, 4.0, BAKERY.z - 5.8);
+  bakeryGroup.add(frame2);
+
+  // Neon sign
+  const neon = createNeonSignFont("TANU'S TIRA'S", '#ff66cc', 'bold 30px Calibri');
+  neon.position.set(BAKERY.x, BAKERY.height - 1.2, BAKERY.z + BAKERY.depth / 2 + 0.1);
+  bakeryGroup.add(neon);
+
+  // Shop name board
+  const nameSign = createNeonSignFont('TIRAMISSYOU', '#ffd27a', 'bold 28px Calibri');
+  nameSign.position.set(BAKERY.x, BAKERY.height - 2.0, BAKERY.z + BAKERY.depth / 2 + 0.12);
+  bakeryGroup.add(nameSign);
+
+  // Vendor (Kirmada)
+  bakeryBoy = createBoy();
+  bakeryBoy.position.set(BAKERY.x, 0, BAKERY.z - 2);
+  bakeryBubble = createSpeechBubble('Hi, Love would you like to have some TIRAMISU ?');
+  bakeryBubble.position.set(0, 2.4, 0);
+  bakeryBubble.visible = false;
+  bakeryBoy.add(bakeryBubble);
+  bakeryGroup.add(bakeryBoy);
+
+  scene.add(bakeryGroup);
+}
+
+function updateBakery(delta) {
+  if (!bakeryGroup) return;
+
+  // Door open/close by distance
+  const doorPos = new THREE.Vector3(BAKERY.x, 0, BAKERY.z + BAKERY.depth / 2);
+  const dist = player.position.distanceTo(doorPos);
+  bakeryDoorTarget = dist < 4 ? -Math.PI / 2 : 0;
+
+  if (bakeryDoorPivot) {
+    bakeryDoorPivot.rotation.y += (bakeryDoorTarget - bakeryDoorPivot.rotation.y) * 0.12;
+  }
+
+  // Show greeting when player enters shop
+  const inside =
+    Math.abs(player.position.x - BAKERY.x) < BAKERY.width / 2 - 1 &&
+    Math.abs(player.position.z - BAKERY.z) < BAKERY.depth / 2 - 1;
+
+  if (inside && !bakeryInShop) {
+    bakeryInShop = true;
+    bakeryBubble.visible = true;
+    bakeryBubbleTimer = 2.5;
+  }
+  if (!inside) {
+    bakeryInShop = false;
+  }
+  if (bakeryBubbleTimer > 0) {
+    bakeryBubbleTimer -= delta;
+    if (bakeryBubbleTimer <= 0 && bakeryBubble) bakeryBubble.visible = false;
+  }
+} 
+  
 function animate() {
   requestAnimationFrame(animate);
 
@@ -2371,6 +2854,7 @@ function animate() {
 
   updatePlayer(delta);
   updateCamera();
+  updateBakery(delta);
   if (!inIstanbul) {
     updateClouds(delta);
   }
