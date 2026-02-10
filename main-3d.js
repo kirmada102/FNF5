@@ -2871,4 +2871,5 @@ window.addEventListener('resize', () => {
 });
 
 updateHud(0);
+showIntroLetter();
 animate();
