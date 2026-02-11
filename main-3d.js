@@ -2067,12 +2067,12 @@ function showIntroLetter() {
       "></div>
 
       <h2 style="margin-top:0;">Love Quest — Letter</h2>
-      <p><strong>Controls:</strong> WASD or Arrow keys to move, Space to jump, Mouse to look.</p>
+      <p><strong>Controls:</strong> If laptop then -  W A S D keys or Arrow keys to move, Space to jump, Mouse to look. If you play on phone then just use the touch keys. (I'd recommend to play on Laptop with headphones)</p>
 
-      <p>This game is consist of 3 level. If you clear all of them and collect all the hearts you will recieve a big gift at the end.</p>
+      <p>This game has 2 levels. If you clear all of them and collect all the hearts you will recieve a big gift at the end.</p>
 
       <p><strong>Rules -</strong><br>
-      Collect all the hearts.<br>
+      Collect all the hearts Specially in level 1 - make sure u collect the hearts in the field and at then the last one in your favourite bakery.<br>
       Love me forever and ever and ever.</p>
 
       <p>You are advised to agree the follow:</p>
@@ -2908,7 +2908,7 @@ function showFinalLetter() {
   overlayContent.style.boxShadow = '0 18px 40px rgba(0,0,0,0.5)';
   overlayContent.style.padding = '24px 28px';
 
-  const text = `2 years with you my love and I think the reason every moment of our journey has been sp beautiful is because you were a part of every scenery.
+  const text = `2 years with you my love and I think the reason every moment of our journey has been so beautiful is because you were a part of every scenery.
 I wish to live the whole eternity with you and you and you till the galaxies collide the world collapse and everything comes to dust. Happy valentines day my love.
 I hope you love my small gift i have working on months for.
 
