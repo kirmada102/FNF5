@@ -2949,7 +2949,7 @@ I love you Tanu. I always will
     }
     overlay.style.display = 'none';
     finalLetterAutoHideTimer = null;
-  }, 10000);
+  }, 20000);
 
   fadeFromBlack(900);
 }
